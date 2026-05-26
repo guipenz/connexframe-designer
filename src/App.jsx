@@ -1608,11 +1608,7 @@ function BrandFooter() {
     }}>
       <div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:26,height:26,objectFit:"contain"}}/>
-          <div style={{fontSize:13,fontWeight:800,letterSpacing:1.8}}>
-            <span style={{color:"#EDE8E3"}}>CONNEX</span>
-            <span style={{color:T.cu300}}>FRAME</span>
-          </div>
+          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:40,height:40,objectFit:"contain"}}/>
         </div>
         <div style={{fontSize:10.5,color:T.ca200,lineHeight:1.55}}>
           Composite shear connector system for precast concrete sandwich panels.<br/>
@@ -1694,13 +1690,10 @@ export default function App() {
         boxShadow:`0 4px 24px ${T.ca800}90`,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:46,height:46,objectFit:"contain",filter:"drop-shadow(0 2px 6px rgba(196,123,58,.4))"}}/>
-          <div>
-            <div style={{fontSize:20,fontWeight:800,letterSpacing:2.5,lineHeight:1}}>
-              <span style={{color:"#EDE8E3"}}>CONNEX</span>
-              <span style={{color:T.cu300}}>FRAME</span>
-            </div>
-            <div style={{fontSize:8,color:T.ca200,letterSpacing:3.5,marginTop:2,fontWeight:500}}>DESIGNER &middot; SIZING + ROI SUITE</div>
+          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:70,height:70,objectFit:"contain",filter:"drop-shadow(0 2px 6px rgba(196,123,58,.4))"}}/>
+          <div style={{borderLeft:`1px solid ${T.ca400}`,paddingLeft:12}}>
+            <div style={{fontSize:11,color:T.cu300,letterSpacing:3.5,fontWeight:600,lineHeight:1}}>DESIGNER</div>
+            <div style={{fontSize:9,color:T.ca200,letterSpacing:2.5,marginTop:4,fontWeight:500}}>SIZING + ROI SUITE</div>
           </div>
         </div>
 
