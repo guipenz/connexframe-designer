@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useRef } from "react";
+import logoConnexframe from "./assets/logo.png";
 
 // ─── DESIGN TOKENS ────────────────────────────────────────────────────────────
 const T = {
@@ -240,7 +241,15 @@ function KpiCard({label, value, unit, sub, accent, warn, icon}) {
       {(accent||warn) && <div style={{position:"absolute",top:-20,right:-20,width:80,height:80,borderRadius:"50%",background:col,opacity:0.06,filter:"blur(20px)"}}/>}
       <div style={{fontSize:9,color:T.ca200,textTransform:"uppercase",letterSpacing:1.8,marginBottom:10,fontWeight:600}}>{label}</div>
       <div style={{fontSize:30,fontWeight:700,color:col,fontFamily:"'DM Mono',monospace",lineHeight:1,letterSpacing:-0.5}}>
-        <AnimNum value={typeof value==="string"?parseFloat(value)||value:value} suffix={unit||""} decimals={typeof value==="number"&&value%1!==0?1:0}/>
+        {(()=>{
+          // Animate when value is numeric (or a clean numeric string). Otherwise render raw,
+          // so formatted strings like "+$2.0k" or "Day 1" display correctly instead of NaN.
+          const numeric = typeof value==="number"
+            ? value
+            : (typeof value==="string" && /^[+\-−]?\d+(\.\d+)?$/.test(value.trim()) ? parseFloat(value) : null);
+          if (numeric === null || Number.isNaN(numeric)) return <>{value}{unit||""}</>;
+          return <AnimNum value={numeric} suffix={unit||""} decimals={typeof value==="number"&&value%1!==0?1:0}/>;
+        })()}
       </div>
       {sub && <div style={{fontSize:10.5,color:T.ca200,marginTop:8,lineHeight:1.4}}>{sub}</div>}
     </div>
@@ -632,6 +641,7 @@ function EnergyTab({R}) {
   const [city, setCity] = useState("chicago");
   const [btype, setBtype] = useState("office");
   const [customArea, setCustomArea] = useState(null);
+  const [compareIdx, setCompareIdx] = useState(0);
   const area=customArea||BUILDING_TYPES[btype].area;
   const cd=CITIES[city];
   const cfE=useMemo(()=>calcEnergy(parseFloat(R.rEff),city,btype),[R.rEff,city,btype]);
@@ -640,6 +650,7 @@ function EnergyTab({R}) {
   ,[R.comps,city,btype,cfE]);
   const maxSave=Math.max(...compResults.map(c=>c.save),1);
   const fmt=n=>n>=1000?`$${(n/1000).toFixed(1)}k`:`$${n.toFixed(0)}`;
+  const selectedComp = compResults[compareIdx] || compResults[0];
 
   return (
     <div>
@@ -718,13 +729,24 @@ function EnergyTab({R}) {
           </div>
         </div>
         <div style={{textAlign:"center"}}>
-          <div style={{fontSize:10,color:T.ca200,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>vs Steel Connector</div>
+          <div style={{fontSize:10,color:T.ca200,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>vs {selectedComp?.label||"competitor"}</div>
+          <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",marginBottom:8}}>
+            {compResults.map((c,i)=>(
+              <button key={c.k} onClick={()=>setCompareIdx(i)} style={{
+                padding:"3px 8px",borderRadius:10,fontSize:9,letterSpacing:0.3,cursor:"pointer",
+                border:`1px solid ${i===compareIdx?T.cu400:T.ca400}`,
+                background:i===compareIdx?`${T.cu700}40`:"transparent",
+                color:i===compareIdx?T.cu300:T.ca200,
+                fontWeight:i===compareIdx?600:400,fontFamily:"'DM Sans',sans-serif",
+              }}>{c.label}</button>
+            ))}
+          </div>
           <div style={{fontSize:11,color:T.ca100,marginBottom:4}}>Annual savings</div>
           <div style={{fontSize:36,fontWeight:700,color:T.green,fontFamily:"monospace",lineHeight:1}}>
-            <AnimNum value={compResults[3]?.save||0} prefix="$" decimals={0}/>
+            <AnimNum value={selectedComp?.save||0} prefix="$" decimals={0}/>
           </div>
           <div style={{fontSize:11,color:T.ca200,marginTop:6}}>
-            30-yr NPV: <span style={{color:T.cu300,fontWeight:600}}>{fmt((compResults[3]?.save||0)*30*0.72)}</span>
+            30-yr NPV: <span style={{color:T.cu300,fontWeight:600}}>{fmt((selectedComp?.save||0)*30*0.72)}</span>
           </div>
         </div>
       </div>
@@ -831,7 +853,7 @@ function RoiTab({R}) {
       {/* ── KPI Strip ── */}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:20}}>
         <KpiCard label="Total Connectors" value={roi.totalConnectors} unit="" sub={`${areaFt2.toLocaleString()} ft² × ${(roi.totalConnectors/areaFt2).toFixed(2)}/ft²`}/>
-        <KpiCard label="Upfront vs Thermomass" value={roi.upfrontDelta>=0?`+${fmt(roi.upfrontDelta).replace("$","")}`:`-${fmt(-roi.upfrontDelta).replace("$","")}`} unit="" sub={roi.upfrontDelta<0?"ConnexFrame cheaper upfront":"Thermomass cheaper upfront"} accent={roi.upfrontDelta<0} warn={roi.upfrontDelta>0}/>
+        <KpiCard label="Upfront vs Thermomass" value={`${roi.upfrontDelta>=0?'+':'−'}${fmt(Math.abs(roi.upfrontDelta))}`} unit="" sub={roi.upfrontDelta<0?"ConnexFrame cheaper upfront":"Thermomass cheaper upfront"} accent={roi.upfrontDelta<0} warn={roi.upfrontDelta>0}/>
         <KpiCard label="Annual Savings vs Thermomass" value={fmt(roi.annualDelta).replace("$","")} unit="" sub={`${horizon}-yr cumulative: ${fmt(roi.annualDelta*horizon)}`} accent/>
         <KpiCard label="Payback Period" value={roi.paybackYears===null?"Day 1":roi.paybackYears.toFixed(1)} unit={roi.paybackYears===null?"":" yr"} sub={roi.paybackYears===null?"ConnexFrame cheaper from year 0":"vs Thermomass benchmark"} accent/>
       </div>
@@ -932,8 +954,8 @@ function RoiTab({R}) {
         <div style={{padding:"12px 16px",borderBottom:`1px solid ${T.ca400}`}}>
           <SectionHead icon="📊" title="11-Metric Lifetime Comparison Matrix"/>
         </div>
-        <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:680}}>
+        <div style={{overflowX:"auto",maxWidth:"100%"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",fontSize:11,minWidth:880}}>
           <thead>
             <tr style={{background:T.ca700}}>
               <th style={{textAlign:"left",padding:"10px 14px",color:T.ca200,fontWeight:500,fontSize:10,textTransform:"uppercase",letterSpacing:1,minWidth:160}}>Metric</th>
@@ -956,20 +978,21 @@ function RoiTab({R}) {
                 {label:"Labor cost (install)",          get:s=>fmtFull(s.labor),          bestKey:"labor",        lower:true},
                 {label:"Upfront total",                 get:s=>fmtFull(s.upfront),        bestKey:"upfront",      lower:true},
                 {label:"Effective R-value",             get:s=>`R-${s.rEffSys.toFixed(1)}`, bestKey:"rEffSys",    lower:false},
-                {label:"Composite action",              get:s=>`${(s.compRef*100).toFixed(0)}%`, bestKey:"compRef", lower:false},
+                {label:"Composite action",              get:s=>`${(s.compRef*100).toFixed(0)}%`, bestKey:"compRef", lower:false, excludeBest:s=>s.bfRef>0.30},
                 {label:"Annual energy cost",            get:s=>fmtFull(s.annualEnergy),   bestKey:"annualEnergy", lower:true},
                 {label:"Annual maintenance",            get:s=>s.annualMaint>0?fmtFull(s.annualMaint):"—", bestKey:"annualMaint", lower:true},
                 {label:"Service life",                  get:s=>`${s.life} yr`,            bestKey:"life",         lower:false},
                 {label:`Lifetime cost (${horizon}-yr NPV)`, get:s=>fmtFull(s.lifetimeCost), bestKey:"lifetimeCost", lower:true, highlight:true},
               ];
               return rows.map((row,i)=>{
-                const vals = roi.systems.map(s=>s[row.bestKey]);
+                const eligible = row.excludeBest ? roi.systems.filter(s=>!row.excludeBest(s)) : roi.systems;
+                const vals = eligible.map(s=>s[row.bestKey]);
                 const best = row.lower ? Math.min(...vals) : Math.max(...vals);
                 return (
                   <tr key={i} style={{borderBottom:`1px solid ${T.ca500}`,background:i%2?T.ca700:`${T.ca600}80`,...(row.highlight?{background:`${T.cu700}30`}:{})}}>
                     <td style={{padding:"9px 14px",color:row.highlight?T.cu300:T.ca100,fontWeight:row.highlight?600:400}}>{row.label}</td>
                     {roi.systems.map(s=>{
-                      const isBest = s[row.bestKey]===best;
+                      const isBest = s[row.bestKey]===best && !(row.excludeBest && row.excludeBest(s));
                       return (
                         <td key={s.key} style={{
                           padding:"9px 14px",textAlign:"right",fontFamily:"monospace",
@@ -1585,15 +1608,7 @@ function BrandFooter() {
     }}>
       <div>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-          <svg width={22} height={22} viewBox="0 0 32 32">
-            <defs>
-              <linearGradient id="ftgrad" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={T.cu300}/><stop offset="100%" stopColor={T.cu500}/>
-              </linearGradient>
-            </defs>
-            <polygon points="16,1 29,8.5 29,23.5 16,31 3,23.5 3,8.5" fill="none" stroke="url(#ftgrad)" strokeWidth="1.5"/>
-            <circle cx="16" cy="17" r="2" fill="url(#ftgrad)"/>
-          </svg>
+          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:26,height:26,objectFit:"contain"}}/>
           <div style={{fontSize:13,fontWeight:800,letterSpacing:1.8}}>
             <span style={{color:"#EDE8E3"}}>CONNEX</span>
             <span style={{color:T.cu300}}>FRAME</span>
@@ -1679,18 +1694,7 @@ export default function App() {
         boxShadow:`0 4px 24px ${T.ca800}90`,
       }}>
         <div style={{display:"flex",alignItems:"center",gap:12}}>
-          <svg width={40} height={40} viewBox="0 0 32 32">
-            <defs>
-              <linearGradient id="hcg" x1="0%" y1="0%" x2="100%" y2="100%">
-                <stop offset="0%" stopColor={T.cu300}/><stop offset="100%" stopColor={T.cu500}/>
-              </linearGradient>
-            </defs>
-            <polygon points="16,1 29,8.5 29,23.5 16,31 3,23.5 3,8.5" fill="none" stroke="url(#hcg)" strokeWidth="1.5"/>
-            <path d="M9,13 L16,9 L23,13" fill="none" stroke="url(#hcg)" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M9,13 L9,21 L13,23" fill="none" stroke="url(#hcg)" strokeWidth="2" strokeLinecap="round"/>
-            <path d="M16,9 L16,17 L23,21" fill="none" stroke="url(#hcg)" strokeWidth="2" strokeLinecap="round"/>
-            <circle cx="16" cy="17" r="2" fill="url(#hcg)"/>
-          </svg>
+          <img src={logoConnexframe} alt="ConnexFrame logo" style={{width:46,height:46,objectFit:"contain",filter:"drop-shadow(0 2px 6px rgba(196,123,58,.4))"}}/>
           <div>
             <div style={{fontSize:20,fontWeight:800,letterSpacing:2.5,lineHeight:1}}>
               <span style={{color:"#EDE8E3"}}>CONNEX</span>
